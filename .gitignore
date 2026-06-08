@@ -1,0 +1,23 @@
+# Dependências
+node_modules/
+
+# Variáveis de ambiente
+.env
+
+# Prisma
+generated/
+.prisma/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos temporários
+*.tmp
+*.log
