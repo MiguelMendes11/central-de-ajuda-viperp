@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Artigo | Central de Ajuda VipERP</title>
+
+  <link rel="stylesheet" href="./css/style.css" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+</head>
+<body class="article-page">
+  <header class="topbar">
+    <div class="topbar-content">
+      <a href="./index.html" class="brand" aria-label="Voltar para a página inicial">
+        <div class="brand-main">
+          <span class="brand-text">viperp</span>
+          <span class="brand-icon">♜</span>
+        </div>
+        <span class="brand-subtitle">sistema de gestão</span>
+      </a>
+
+      <nav class="nav-menu" aria-label="Menu principal">
+        <a href="./index.html" class="nav-link">Principal</a>
+        <a href="./index.html#categorias" class="nav-link">Treinamento</a>
+        <a
+          href="https://wa.me/5517991602494"
+          class="nav-link"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Fale com a gente
+        </a>
+        <a
+          href="https://sistemaviperp.com.br"
+          class="nav-link"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Conheça o Sistema VipERP
+        </a>
+      </nav>
+
+      <a
+        href="https://wa.me/5517991602494"
+        class="btn-open-ticket"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <span>🎧</span>
+        Abrir chamado
+      </a>
+    </div>
+  </header>
+
+  <main class="article-layout">
+    <a href="./index.html" class="back-link">
+      ← Voltar para a Central de Ajuda
+    </a>
+
+    <div id="articleStatus" class="loading-box">
+      Carregando artigo...
+    </div>
+
+    <article id="articleContainer" style="display: none;">
+      <header class="article-header">
+        <div class="article-meta" id="articleMeta"></div>
+
+        <h1 id="articleTitle"></h1>
+
+        <p id="articleInfo"></p>
+      </header>
+
+      <div class="article-content" id="articleContent"></div>
+    </article>
+  </main>
+
+  <footer class="footer">
+    <p>Central de Ajuda VipERP — Sistema de Gestão</p>
+  </footer>
+
+  <script src="./js/artigo.js"></script>
+</body>
+</html>

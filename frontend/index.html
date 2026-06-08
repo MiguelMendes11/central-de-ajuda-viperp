@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Central de Ajuda VipERP</title>
+
+  <link rel="stylesheet" href="./css/style.css" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-content">
+      <a href="./index.html" class="brand" aria-label="Voltar para a página inicial">
+        <div class="brand-main">
+          <span class="brand-text">viperp</span>
+          <span class="brand-icon">♜</span>
+        </div>
+        <span class="brand-subtitle">sistema de gestão</span>
+      </a>
+
+      <nav class="nav-menu" aria-label="Menu principal">
+        <a href="./index.html" class="nav-link active">Principal</a>
+        <a href="#categorias" class="nav-link">Treinamento</a>
+        <a
+          href="https://wa.me/5517991602494"
+          class="nav-link"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Fale com a gente
+        </a>
+        <a
+          href="https://sistemaviperp.com.br"
+          class="nav-link"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Conheça o Sistema VipERP
+        </a>
+      </nav>
+
+      <a
+        href="https://wa.me/5517991602494"
+        class="btn-open-ticket"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <span>🎧</span>
+        Abrir chamado
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-content">
+        <div class="hero-text">
+          <h1>
+            A ajuda que você precisa,
+            <span>rápida e prática.</span>
+          </h1>
+
+          <p>
+            Encontre respostas para suas dúvidas, acesse tutoriais e aprenda a usar
+            o VipERP de forma simples, organizada e direta ao ponto.
+          </p>
+
+          <form class="search-box" id="searchForm">
+            <div class="search-input-wrapper">
+              <span class="search-icon">🔎</span>
+              <input
+                type="search"
+                id="searchInput"
+                placeholder="Como podemos ajudar?"
+                autocomplete="off"
+              />
+            </div>
+
+            <button type="submit" id="searchButton">
+              Buscar
+            </button>
+          </form>
+        </div>
+
+        <div class="hero-image" aria-hidden="true">
+          <div class="orange-shape"></div>
+
+          <div class="chat-bubble">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+
+          <div class="mockup-card">
+            <div class="mockup-sidebar">
+              <strong>VipERP</strong>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+
+            <div class="mockup-screen">
+              <div class="mockup-header"></div>
+
+              <div class="mockup-grid">
+                <div class="mockup-chart">
+                  <div class="chart-circle"></div>
+                </div>
+
+                <div class="mockup-list">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="plant-card">
+            <span></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="categories-section" id="categorias">
+      <div class="section-header">
+        <h2>Conheça nossas categorias de conteúdo</h2>
+        <p>Encontre o tipo de informação que você precisa com mais facilidade.</p>
+      </div>
+
+      <div class="categories-grid" id="categoriesGrid">
+        <button class="category-card" data-category="">
+          <span class="category-icon orange">▦</span>
+          <div>
+            <strong>Todos</strong>
+            <p>Veja todos os artigos disponíveis.</p>
+          </div>
+        </button>
+
+        <button class="category-card" data-category="gestao">
+          <span class="category-icon orange">▤</span>
+          <div>
+            <strong>Gestão</strong>
+            <p>Módulos e processos do sistema de gestão.</p>
+          </div>
+        </button>
+
+        <button class="category-card" data-category="pdv">
+          <span class="category-icon blue">🛒</span>
+          <div>
+            <strong>PDV</strong>
+            <p>Funcionalidades do ponto de venda.</p>
+          </div>
+        </button>
+
+        <button class="category-card" data-category="geral">
+          <span class="category-icon green">?</span>
+          <div>
+            <strong>Geral</strong>
+            <p>Informações e configurações gerais.</p>
+          </div>
+        </button>
+
+        <button class="category-card" data-category="notas-de-versao">
+          <span class="category-icon purple">▣</span>
+          <div>
+            <strong>Notas de Versão</strong>
+            <p>Novidades e melhorias do sistema.</p>
+          </div>
+        </button>
+
+        <button class="category-card" data-category="tutoriais-em-videos">
+          <span class="category-icon red">▶</span>
+          <div>
+            <strong>Tutoriais em Vídeos</strong>
+            <p>Aprenda assistindo passo a passo.</p>
+          </div>
+        </button>
+      </div>
+    </section>
+
+    <section class="articles-section" id="resultados">
+      <div class="section-header">
+        <h2 id="articlesTitle">Artigos disponíveis</h2>
+        <p id="articlesSubtitle">
+          Consulte os conteúdos da Central de Ajuda VipERP.
+        </p>
+      </div>
+
+      <div class="articles-status" id="articlesStatus">
+        Carregando artigos...
+      </div>
+
+      <div class="articles-grid" id="articlesGrid"></div>
+    </section>
+
+    <section class="benefits-bar">
+      <div class="benefit-item">
+        <span>⏱</span>
+        <div>
+          <strong>Respostas rápidas</strong>
+          <p>Encontre soluções em poucos cliques.</p>
+        </div>
+      </div>
+
+      <div class="benefit-item">
+        <span>🎓</span>
+        <div>
+          <strong>Tutoriais completos</strong>
+          <p>Aprenda no seu ritmo.</p>
+        </div>
+      </div>
+
+      <div class="benefit-item">
+        <span>👥</span>
+        <div>
+          <strong>Fale com a gente</strong>
+          <p>Nossa equipe está pronta para ajudar.</p>
+        </div>
+      </div>
+
+      <div class="benefit-item">
+        <span>🛡</span>
+        <div>
+          <strong>Conteúdo seguro</strong>
+          <p>Informações confiáveis e atualizadas.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>Central de Ajuda VipERP — Sistema de Gestão</p>
+  </footer>
+
+  <script src="./js/app.js"></script>
+</body>
+</html>
