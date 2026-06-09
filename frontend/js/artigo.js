@@ -650,12 +650,13 @@ async function loadArticle() {
 
   try {
     const response = await fetch(`${API_URL}/articles/${encodeURIComponent(slug)}`);
+    const data = await response.json();
 
     if (!response.ok) {
-      throw new Error("Artigo não encontrado.");
+      throw new Error(data.error || "Artigo não encontrado.");
     }
 
-    const article = await response.json();
+    const article = data.article || data;
 
     document.title = `${article.title} | Central de Ajuda VipERP`;
 

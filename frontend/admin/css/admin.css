@@ -961,3 +961,209 @@ button {
     padding: 22px;
   }
 }
+
+.admin-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.admin-action-btn {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 8px 13px;
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 800;
+  text-decoration: none;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.admin-action-btn.view {
+  background: #eef4ff;
+  color: #3538cd;
+}
+
+.admin-action-btn.view:hover {
+  background: #3538cd;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.admin-action-btn.edit {
+  background: var(--orange-soft);
+  color: var(--orange);
+}
+
+.admin-action-btn.edit:hover {
+  background: var(--orange);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+/* ============================= */
+/* TELA DE EDIÇÃO DE ARTIGO */
+/* ============================= */
+
+.admin-hero-compact {
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.btn-admin-secondary {
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 101, 0, 0.22);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--orange);
+  font-size: 15px;
+  font-weight: 800;
+  padding: 0 20px;
+  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.04);
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.btn-admin-secondary:hover {
+  background: var(--orange-soft);
+  color: var(--orange-dark);
+  transform: translateY(-1px);
+}
+
+.admin-edit-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+.admin-edit-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 28px;
+  box-shadow: var(--shadow-md);
+}
+
+.admin-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.admin-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-bottom: 20px;
+}
+
+.admin-form-group label {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.admin-form-group input,
+.admin-form-group textarea,
+.admin-form-group select {
+  width: 100%;
+  border: 1px solid #d0d5dd;
+  border-radius: 14px;
+  outline: none;
+  background: #ffffff;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 14px 16px;
+  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.04);
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-form-group input {
+  height: 52px;
+}
+
+.admin-form-group textarea {
+  min-height: 120px;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.admin-form-group textarea#articleContent {
+  min-height: 420px;
+  font-family: Consolas, Monaco, "Courier New", monospace;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.admin-form-group input:focus,
+.admin-form-group textarea:focus,
+.admin-form-group select:focus {
+  border-color: var(--orange);
+  box-shadow: 0 0 0 4px rgba(255, 101, 0, 0.12);
+}
+
+.admin-form-group input:disabled,
+.admin-form-group textarea:disabled,
+.admin-form-group select:disabled {
+  background: #f9fafb;
+  color: #475467;
+  cursor: not-allowed;
+}
+
+.admin-edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  padding-top: 8px;
+  margin-top: 6px;
+}
+
+.admin-edit-message {
+  margin-top: 18px;
+  border-radius: 16px;
+  background: #fff3eb;
+  border: 1px solid rgba(255, 101, 0, 0.18);
+  color: var(--orange-dark);
+  padding: 14px 16px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+@media (max-width: 820px) {
+  .admin-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-edit-card {
+    padding: 22px;
+  }
+
+  .admin-edit-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-edit-actions .btn-admin-secondary,
+  .admin-edit-actions .btn-admin-primary {
+    width: 100%;
+  }
+}
+
+.admin-action-btn.unavailable {
+  background: #f2f4f7;
+  color: #98a2b3;
+  cursor: not-allowed;
+}
+
+.admin-action-btn.unavailable:hover {
+  background: #f2f4f7;
+  color: #98a2b3;
+  transform: none;
+}

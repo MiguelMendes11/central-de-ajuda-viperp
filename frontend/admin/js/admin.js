@@ -121,8 +121,26 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function encodeUrlValue(value) {
+  return encodeURIComponent(String(value || ""));
+}
+
 function getArticleCategoryName(article) {
   return article.category?.name || "Sem categoria";
+}
+
+function getPublicArticleUrl(article) {
+  const slug = encodeUrlValue(article.slug);
+
+  return `${window.location.origin}/frontend/artigo.html?slug=${slug}`;
+}
+
+function getEditArticleUrl(article) {
+  return `./editar-artigo.html?id=${encodeUrlValue(article.id)}`;
+}
+
+function articleCanBeViewedPublicly(article) {
+  return article.status === "PUBLISHED" && Boolean(article.slug);
 }
 
 function getFilteredArticles() {
@@ -165,6 +183,31 @@ function updateStats(articles) {
   statArchived.textContent = archived;
 }
 
+function renderPublicArticleButton(article) {
+  if (articleCanBeViewedPublicly(article)) {
+    return `
+      <a
+        href="${getPublicArticleUrl(article)}"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="admin-action-btn view"
+        title="Visualizar artigo público"
+      >
+        Ver
+      </a>
+    `;
+  }
+
+  return `
+    <span
+      class="admin-action-btn unavailable"
+      title="Este artigo não está publicado ou não possui slug"
+    >
+      Indisponível
+    </span>
+  `;
+}
+
 function renderArticlesTable() {
   const filteredArticles = getFilteredArticles();
 
@@ -175,7 +218,7 @@ function renderArticlesTable() {
 
     adminArticlesTableBody.innerHTML = `
       <tr>
-        <td colspan="7" class="admin-empty-cell">
+        <td colspan="8" class="admin-empty-cell">
           Nenhum artigo encontrado.
         </td>
       </tr>
@@ -197,7 +240,7 @@ function renderArticlesTable() {
           <td>
             <div class="admin-article-title">
               <strong>${escapeHtml(article.title)}</strong>
-              <span>${escapeHtml(article.slug)}</span>
+              <span>${escapeHtml(article.slug || "sem-slug")}</span>
             </div>
           </td>
 
@@ -220,6 +263,20 @@ function renderArticlesTable() {
           <td>${article.imageCount || 0}</td>
 
           <td>${formatDate(article.updatedAt || article.modifiedAt)}</td>
+
+          <td>
+            <div class="admin-actions">
+              ${renderPublicArticleButton(article)}
+
+              <a
+                href="${getEditArticleUrl(article)}"
+                class="admin-action-btn edit"
+                title="Editar artigo"
+              >
+                Editar
+              </a>
+            </div>
+          </td>
         </tr>
       `;
     })
@@ -263,7 +320,7 @@ async function initAdminPanel() {
     adminArticlesStatus.textContent = error.message;
     adminArticlesTableBody.innerHTML = `
       <tr>
-        <td colspan="7" class="admin-empty-cell">
+        <td colspan="8" class="admin-empty-cell">
           ${escapeHtml(error.message)}
         </td>
       </tr>

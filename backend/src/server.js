@@ -4,6 +4,7 @@ const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+
 const { PrismaPg } = require("@prisma/adapter-pg");
 const { PrismaClient } = require("@prisma/client");
 
@@ -26,9 +27,10 @@ const prisma = new PrismaClient({
 });
 
 const app = express();
+const PORT = process.env.PORT || 3001;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "20mb" }));
 
 function generateToken(user) {
   return jwt.sign(
@@ -39,65 +41,116 @@ function generateToken(user) {
     },
     process.env.JWT_SECRET,
     {
-      expiresIn: "8h",
+      expiresIn: "7d",
     }
   );
 }
 
-function authenticateAdmin(req, res, next) {
+function getTokenFromRequest(req) {
+  const authorization = req.headers.authorization;
+
+  if (!authorization) {
+    return null;
+  }
+
+  const [type, token] = authorization.split(" ");
+
+  if (type !== "Bearer" || !token) {
+    return null;
+  }
+
+  return token;
+}
+
+async function authenticateAdmin(req, res, next) {
   try {
-    const authHeader = req.headers.authorization;
+    const token = getTokenFromRequest(req);
 
-    if (!authHeader) {
+    if (!token) {
       return res.status(401).json({
-        error: "Token não informado.",
-      });
-    }
-
-    const [type, token] = authHeader.split(" ");
-
-    if (type !== "Bearer" || !token) {
-      return res.status(401).json({
-        error: "Formato do token inválido.",
+        error: "Token de autenticação não informado.",
       });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    if (!decoded || decoded.role !== "ADMIN") {
-      return res.status(403).json({
-        error: "Acesso negado.",
+    const user = await prisma.user.findUnique({
+      where: {
+        id: decoded.id,
+      },
+    });
+
+    if (!user) {
+      return res.status(401).json({
+        error: "Usuário não encontrado.",
       });
     }
 
-    req.user = decoded;
+    if (user.role !== "ADMIN" && user.role !== "EDITOR") {
+      return res.status(403).json({
+        error: "Usuário sem permissão administrativa.",
+      });
+    }
 
-    next();
+    req.user = user;
+
+    return next();
   } catch (error) {
     return res.status(401).json({
-      error: "Token inválido ou expirado.",
+      error: "Sessão inválida ou expirada.",
     });
   }
 }
 
-app.get("/", (req, res) => {
-  res.json({
-    message: "API da Central de Ajuda VipERP funcionando.",
-    status: "online",
-  });
-});
+function normalizeSearchTerm(value) {
+  return String(value || "").trim();
+}
 
-/**
- * Login administrativo.
- * POST /admin/login
- */
+function getPaginationParams(req) {
+  const page = Math.max(Number(req.query.page) || 1, 1);
+  const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
+  const skip = (page - 1) * limit;
+
+  return {
+    page,
+    limit,
+    skip,
+  };
+}
+
+function getPublicArticleInclude() {
+  return {
+    category: true,
+    tags: {
+      include: {
+        tag: true,
+      },
+    },
+  };
+}
+
+function getAdminArticleInclude() {
+  return {
+    category: true,
+    tags: {
+      include: {
+        tag: true,
+      },
+    },
+  };
+}
+
+/* ============================= */
+/* ROTAS ADMINISTRATIVAS */
+/* ============================= */
+
 app.post("/admin/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
-        error: "Informe email e senha.",
+        error: "Informe e-mail e senha.",
       });
     }
 
@@ -109,7 +162,7 @@ app.post("/admin/login", async (req, res) => {
 
     if (!user) {
       return res.status(401).json({
-        error: "Email ou senha inválidos.",
+        error: "E-mail ou senha inválidos.",
       });
     }
 
@@ -117,209 +170,119 @@ app.post("/admin/login", async (req, res) => {
 
     if (!passwordIsValid) {
       return res.status(401).json({
-        error: "Email ou senha inválidos.",
-      });
-    }
-
-    if (user.role !== "ADMIN") {
-      return res.status(403).json({
-        error: "Usuário sem permissão administrativa.",
+        error: "E-mail ou senha inválidos.",
       });
     }
 
     const token = generateToken(user);
 
-    res.json({
-      message: "Login realizado com sucesso.",
+    return res.json({
       token,
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
         role: user.role,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
       },
     });
   } catch (error) {
-    console.error("Erro ao realizar login:", error);
+    console.error("Erro no login administrativo:", error);
 
-    res.status(500).json({
-      error: "Erro ao realizar login.",
+    return res.status(500).json({
+      error: "Erro ao realizar login administrativo.",
     });
   }
 });
 
-/**
- * Dados do usuário logado.
- * GET /admin/me
- */
 app.get("/admin/me", authenticateAdmin, async (req, res) => {
-  try {
-    const user = await prisma.user.findUnique({
-      where: {
-        id: req.user.id,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-
-    if (!user) {
-      return res.status(404).json({
-        error: "Usuário não encontrado.",
-      });
-    }
-
-    res.json({
-      user,
-    });
-  } catch (error) {
-    console.error("Erro ao buscar usuário logado:", error);
-
-    res.status(500).json({
-      error: "Erro ao buscar usuário logado.",
-    });
-  }
+  return res.json({
+    user: {
+      id: req.user.id,
+      name: req.user.name,
+      email: req.user.email,
+      role: req.user.role,
+      createdAt: req.user.createdAt,
+      updatedAt: req.user.updatedAt,
+    },
+  });
 });
 
-/**
- * Lista administrativa de artigos.
- * Mostra publicados, rascunhos, arquivados e protegidos.
- * GET /admin/articles
- */
 app.get("/admin/articles", authenticateAdmin, async (req, res) => {
   try {
-    const { search, status, protected: protectedFilter, category } = req.query;
-
-    const where = {};
-
-    if (search) {
-      where.OR = [
-        {
-          title: {
-            contains: String(search),
-            mode: "insensitive",
-          },
-        },
-        {
-          slug: {
-            contains: String(search),
-            mode: "insensitive",
-          },
-        },
-        {
-          contentHtml: {
-            contains: String(search),
-            mode: "insensitive",
-          },
-        },
-        {
-          summary: {
-            contains: String(search),
-            mode: "insensitive",
-          },
-        },
-      ];
-    }
-
-    if (status && ["PUBLISHED", "DRAFT", "ARCHIVED"].includes(String(status))) {
-      where.status = String(status);
-    }
-
-    if (protectedFilter === "true") {
-      where.protected = true;
-    }
-
-    if (protectedFilter === "false") {
-      where.protected = false;
-    }
-
-    if (category) {
-      where.category = {
-        slug: String(category),
-      };
-    }
-
     const articles = await prisma.article.findMany({
-      where,
-      orderBy: {
-        updatedAt: "desc",
-      },
-      select: {
-        id: true,
-        oldId: true,
-        title: true,
-        slug: true,
-        originalSlug: true,
-        summary: true,
-        originalUrl: true,
-        futureUrl: true,
-        author: true,
-        wpStatus: true,
-        status: true,
-        protected: true,
-        imageCount: true,
-        localImageCount: true,
-        missingImageCount: true,
-        videoCount: true,
-        publishedAt: true,
-        modifiedAt: true,
-        createdAt: true,
-        updatedAt: true,
-        category: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
+      orderBy: [
+        {
+          updatedAt: "desc",
         },
-        tags: {
-          select: {
-            tag: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-              },
-            },
-          },
-        },
-      },
+      ],
+      include: getAdminArticleInclude(),
     });
 
-    res.json({
-      total: articles.length,
+    return res.json({
       articles,
     });
   } catch (error) {
-    console.error("Erro ao listar artigos administrativos:", error);
+    console.error("Erro ao buscar artigos administrativos:", error);
 
-    res.status(500).json({
-      error: "Erro ao listar artigos administrativos.",
+    return res.status(500).json({
+      error: "Erro ao buscar artigos administrativos.",
     });
   }
 });
 
-/**
- * Estatísticas gerais
- */
+app.get("/admin/articles/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const article = await prisma.article.findUnique({
+      where: {
+        id,
+      },
+      include: getAdminArticleInclude(),
+    });
+
+    if (!article) {
+      return res.status(404).json({
+        error: "Artigo não encontrado.",
+      });
+    }
+
+    return res.json({
+      article,
+    });
+  } catch (error) {
+    console.error("Erro ao buscar artigo administrativo:", error);
+
+    return res.status(500).json({
+      error: "Erro ao buscar artigo administrativo.",
+    });
+  }
+});
+
+/* ============================= */
+/* ROTAS PÚBLICAS */
+/* ============================= */
+
+app.get("/", (req, res) => {
+  return res.json({
+    message: "API da Central de Ajuda VipERP funcionando.",
+    version: "1.0.0",
+  });
+});
+
 app.get("/stats", async (req, res) => {
   try {
     const [
       articles,
-      categories,
-      tags,
       publishedArticles,
       draftArticles,
       archivedArticles,
+      categories,
+      tags,
     ] = await Promise.all([
       prisma.article.count(),
-      prisma.category.count(),
-      prisma.tag.count(),
       prisma.article.count({
         where: {
           status: "PUBLISHED",
@@ -335,9 +298,11 @@ app.get("/stats", async (req, res) => {
           status: "ARCHIVED",
         },
       }),
+      prisma.category.count(),
+      prisma.tag.count(),
     ]);
 
-    res.json({
+    return res.json({
       articles,
       publishedArticles,
       draftArticles,
@@ -348,294 +313,200 @@ app.get("/stats", async (req, res) => {
   } catch (error) {
     console.error("Erro ao buscar estatísticas:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       error: "Erro ao buscar estatísticas.",
     });
   }
 });
 
-/**
- * Rota de debug para conferir título, slug e status dos artigos.
- * Útil durante o desenvolvimento.
- */
 app.get("/debug/slugs", async (req, res) => {
   try {
     const articles = await prisma.article.findMany({
-      orderBy: {
-        title: "asc",
-      },
       select: {
+        id: true,
         title: true,
         slug: true,
         status: true,
-        oldId: true,
-        originalSlug: true,
-        originalUrl: true,
-        futureUrl: true,
+      },
+      orderBy: {
+        title: "asc",
       },
     });
 
-    res.json({
+    return res.json({
       total: articles.length,
       articles,
     });
   } catch (error) {
-    console.error("Erro ao listar slugs:", error);
+    console.error("Erro ao buscar slugs:", error);
 
-    res.status(500).json({
-      error: "Erro ao listar slugs.",
+    return res.status(500).json({
+      error: "Erro ao buscar slugs.",
     });
   }
 });
 
-/**
- * Lista artigos publicados.
- * Permite filtros:
- * /articles?search=impressora
- * /articles?category=fiscal
- * /articles?tag=nf-e
- */
 app.get("/articles", async (req, res) => {
   try {
-    const { search, category, tag, includeAll } = req.query;
+    const { page, limit, skip } = getPaginationParams(req);
 
-    const where = {};
+    const where = {
+      status: "PUBLISHED",
+    };
 
-    if (includeAll !== "true") {
-      where.status = "PUBLISHED";
+    const [total, articles] = await Promise.all([
+      prisma.article.count({
+        where,
+      }),
+      prisma.article.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: [
+          {
+            isFeatured: "desc",
+          },
+          {
+            publishedAt: "desc",
+          },
+          {
+            title: "asc",
+          },
+        ],
+        include: getPublicArticleInclude(),
+      }),
+    ]);
+
+    return res.json({
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      articles,
+    });
+  } catch (error) {
+    console.error("Erro ao buscar artigos:", error);
+
+    return res.status(500).json({
+      error: "Erro ao buscar artigos.",
+    });
+  }
+});
+
+app.get("/search", async (req, res) => {
+  try {
+    const query = normalizeSearchTerm(req.query.q);
+    const { page, limit, skip } = getPaginationParams(req);
+
+    if (!query) {
+      return res.json({
+        page,
+        limit,
+        total: 0,
+        totalPages: 0,
+        articles: [],
+      });
     }
 
-    if (search) {
-      where.OR = [
+    const where = {
+      status: "PUBLISHED",
+      OR: [
         {
           title: {
-            contains: String(search),
-            mode: "insensitive",
-          },
-        },
-        {
-          contentHtml: {
-            contains: String(search),
-            mode: "insensitive",
-          },
-        },
-        {
-          summary: {
-            contains: String(search),
+            contains: query,
             mode: "insensitive",
           },
         },
         {
           slug: {
-            contains: String(search),
+            contains: query,
             mode: "insensitive",
           },
         },
-      ];
-    }
-
-    if (category) {
-      where.category = {
-        slug: String(category),
-      };
-    }
-
-    if (tag) {
-      where.tags = {
-        some: {
-          tag: {
-            slug: String(tag),
+        {
+          summary: {
+            contains: query,
+            mode: "insensitive",
           },
         },
-      };
-    }
-
-    const articles = await prisma.article.findMany({
-      where,
-      orderBy: {
-        title: "asc",
-      },
-      select: {
-        id: true,
-        oldId: true,
-        title: true,
-        slug: true,
-        originalSlug: true,
-        summary: true,
-        originalUrl: true,
-        futureUrl: true,
-        author: true,
-        wpStatus: true,
-        status: true,
-        protected: true,
-        imageCount: true,
-        localImageCount: true,
-        missingImageCount: true,
-        videoCount: true,
-        publishedAt: true,
-        modifiedAt: true,
-        createdAt: true,
-        updatedAt: true,
-        category: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
+        {
+          contentHtml: {
+            contains: query,
+            mode: "insensitive",
           },
         },
-        tags: {
-          select: {
-            tag: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-              },
-            },
-          },
-        },
-      },
-    });
+      ],
+    };
 
-    res.json({
-      total: articles.length,
-      articles,
-    });
-  } catch (error) {
-    console.error("Erro ao listar artigos:", error);
-
-    res.status(500).json({
-      error: "Erro ao listar artigos.",
-    });
-  }
-});
-
-/**
- * Busca simples.
- * Exemplo:
- * /search?q=impressora
- */
-app.get("/search", async (req, res) => {
-  try {
-    const { q } = req.query;
-
-    if (!q || String(q).trim() === "") {
-      return res.status(400).json({
-        error: "Informe um termo de busca usando ?q=termo",
-      });
-    }
-
-    const termo = String(q).trim();
-
-    const articles = await prisma.article.findMany({
-      where: {
-        status: "PUBLISHED",
-        OR: [
+    const [total, articles] = await Promise.all([
+      prisma.article.count({
+        where,
+      }),
+      prisma.article.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: [
           {
-            title: {
-              contains: termo,
-              mode: "insensitive",
-            },
+            isFeatured: "desc",
           },
           {
-            slug: {
-              contains: termo,
-              mode: "insensitive",
-            },
+            publishedAt: "desc",
           },
           {
-            contentHtml: {
-              contains: termo,
-              mode: "insensitive",
-            },
-          },
-          {
-            summary: {
-              contains: termo,
-              mode: "insensitive",
-            },
+            title: "asc",
           },
         ],
-      },
-      orderBy: {
-        title: "asc",
-      },
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        summary: true,
-        status: true,
-        imageCount: true,
-        videoCount: true,
-        category: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
-      },
-    });
+        include: getPublicArticleInclude(),
+      }),
+    ]);
 
-    res.json({
-      search: termo,
-      total: articles.length,
+    return res.json({
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
       articles,
     });
   } catch (error) {
-    console.error("Erro ao pesquisar artigos:", error);
+    console.error("Erro ao buscar artigos na pesquisa:", error);
 
-    res.status(500).json({
-      error: "Erro ao pesquisar artigos.",
+    return res.status(500).json({
+      error: "Erro ao buscar artigos na pesquisa.",
     });
   }
 });
 
-/**
- * Abre um artigo pelo slug.
- * Exemplo:
- * /articles/como-corrigir-o-erro-0x00000709
- */
 app.get("/articles/:slug", async (req, res) => {
   try {
     const { slug } = req.params;
 
-    const article = await prisma.article.findUnique({
+    const article = await prisma.article.findFirst({
       where: {
         slug,
+        status: "PUBLISHED",
       },
-      include: {
-        category: true,
-        tags: {
-          include: {
-            tag: true,
-          },
-        },
-      },
+      include: getPublicArticleInclude(),
     });
 
     if (!article) {
       return res.status(404).json({
         error: "Artigo não encontrado.",
-        slugRecebido: slug,
-        dica: "Acesse /debug/slugs para conferir o slug correto salvo no banco.",
       });
     }
 
-    res.json(article);
+    return res.json({
+      article,
+    });
   } catch (error) {
     console.error("Erro ao buscar artigo:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       error: "Erro ao buscar artigo.",
     });
   }
 });
 
-/**
- * Lista categorias.
- */
 app.get("/categories", async (req, res) => {
   try {
     const categories = await prisma.category.findMany({
@@ -645,85 +516,90 @@ app.get("/categories", async (req, res) => {
       include: {
         _count: {
           select: {
-            articles: true,
+            articles: {
+              where: {
+                status: "PUBLISHED",
+              },
+            },
           },
         },
       },
     });
 
-    res.json({
-      total: categories.length,
+    return res.json({
       categories,
     });
   } catch (error) {
-    console.error("Erro ao listar categorias:", error);
+    console.error("Erro ao buscar categorias:", error);
 
-    res.status(500).json({
-      error: "Erro ao listar categorias.",
+    return res.status(500).json({
+      error: "Erro ao buscar categorias.",
     });
   }
 });
 
-/**
- * Lista artigos de uma categoria.
- * Exemplo:
- * /categories/fiscal/articles
- */
 app.get("/categories/:slug/articles", async (req, res) => {
   try {
     const { slug } = req.params;
+    const { page, limit, skip } = getPaginationParams(req);
 
     const category = await prisma.category.findUnique({
       where: {
         slug,
-      },
-      include: {
-        articles: {
-          where: {
-            status: "PUBLISHED",
-          },
-          orderBy: {
-            title: "asc",
-          },
-          select: {
-            id: true,
-            title: true,
-            slug: true,
-            summary: true,
-            status: true,
-            imageCount: true,
-            videoCount: true,
-            publishedAt: true,
-            modifiedAt: true,
-          },
-        },
       },
     });
 
     if (!category) {
       return res.status(404).json({
         error: "Categoria não encontrada.",
-        slugRecebido: slug,
       });
     }
 
-    res.json({
+    const where = {
+      status: "PUBLISHED",
+      categoryId: category.id,
+    };
+
+    const [total, articles] = await Promise.all([
+      prisma.article.count({
+        where,
+      }),
+      prisma.article.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: [
+          {
+            isFeatured: "desc",
+          },
+          {
+            publishedAt: "desc",
+          },
+          {
+            title: "asc",
+          },
+        ],
+        include: getPublicArticleInclude(),
+      }),
+    ]);
+
+    return res.json({
       category,
-      total: category.articles.length,
-      articles: category.articles,
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      articles,
     });
   } catch (error) {
     console.error("Erro ao buscar artigos da categoria:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       error: "Erro ao buscar artigos da categoria.",
     });
   }
 });
 
-/**
- * Lista tags.
- */
 app.get("/tags", async (req, res) => {
   try {
     const tags = await prisma.tag.findMany({
@@ -739,100 +615,93 @@ app.get("/tags", async (req, res) => {
       },
     });
 
-    res.json({
-      total: tags.length,
+    return res.json({
       tags,
     });
   } catch (error) {
-    console.error("Erro ao listar tags:", error);
+    console.error("Erro ao buscar tags:", error);
 
-    res.status(500).json({
-      error: "Erro ao listar tags.",
+    return res.status(500).json({
+      error: "Erro ao buscar tags.",
     });
   }
 });
 
-/**
- * Lista artigos de uma tag.
- * Exemplo:
- * /tags/impressora/articles
- */
 app.get("/tags/:slug/articles", async (req, res) => {
   try {
     const { slug } = req.params;
+    const { page, limit, skip } = getPaginationParams(req);
 
     const tag = await prisma.tag.findUnique({
       where: {
         slug,
-      },
-      include: {
-        articles: {
-          include: {
-            article: {
-              select: {
-                id: true,
-                title: true,
-                slug: true,
-                summary: true,
-                status: true,
-                imageCount: true,
-                videoCount: true,
-                publishedAt: true,
-                modifiedAt: true,
-                category: {
-                  select: {
-                    id: true,
-                    name: true,
-                    slug: true,
-                  },
-                },
-              },
-            },
-          },
-        },
       },
     });
 
     if (!tag) {
       return res.status(404).json({
         error: "Tag não encontrada.",
-        slugRecebido: slug,
       });
     }
 
-    const articles = tag.articles
-      .map((item) => item.article)
-      .filter((article) => article.status === "PUBLISHED")
-      .sort((a, b) => a.title.localeCompare(b.title));
-
-    res.json({
-      tag: {
-        id: tag.id,
-        name: tag.name,
-        slug: tag.slug,
+    const where = {
+      status: "PUBLISHED",
+      tags: {
+        some: {
+          tagId: tag.id,
+        },
       },
-      total: articles.length,
+    };
+
+    const [total, articles] = await Promise.all([
+      prisma.article.count({
+        where,
+      }),
+      prisma.article.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: [
+          {
+            isFeatured: "desc",
+          },
+          {
+            publishedAt: "desc",
+          },
+          {
+            title: "asc",
+          },
+        ],
+        include: getPublicArticleInclude(),
+      }),
+    ]);
+
+    return res.json({
+      tag,
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
       articles,
     });
   } catch (error) {
     console.error("Erro ao buscar artigos da tag:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       error: "Erro ao buscar artigos da tag.",
     });
   }
 });
 
-/**
- * Rota não encontrada.
- */
+/* ============================= */
+/* FALLBACK */
+/* ============================= */
+
 app.use((req, res) => {
-  res.status(404).json({
+  return res.status(404).json({
     error: "Rota não encontrada.",
   });
 });
-
-const PORT = process.env.PORT || 3001;
 
 app.listen(PORT, () => {
   console.log(`Servidor rodando em http://localhost:${PORT}`);
