@@ -7,6 +7,9 @@ const articleTitle = document.getElementById("articleTitle");
 const articleInfo = document.getElementById("articleInfo");
 const articleContent = document.getElementById("articleContent");
 
+const YOUTUBE_URL_REGEX =
+  /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/|youtu\.be\/)[^\s<"]+)/gi;
+
 function escapeHtml(text) {
   return String(text || "")
     .replaceAll("&", "&amp;")
@@ -67,17 +70,362 @@ function renderInfo(article) {
     details.push(`Atualizado em ${modifiedAt}`);
   }
 
-  if (article.videoCount > 0) {
+  if (Number(article.videoCount || 0) > 0) {
     details.push(`${article.videoCount} vídeo(s)`);
   }
 
-  if (article.imageCount > 0) {
+  if (Number(article.imageCount || 0) > 0) {
     details.push(`${article.imageCount} imagem(ns)`);
   }
 
   articleInfo.textContent = details.length
     ? details.join(" • ")
     : "Conteúdo da Central de Ajuda VipERP";
+}
+
+function getSafePageOrigin() {
+  if (window.location.origin && window.location.origin !== "null") {
+    return window.location.origin;
+  }
+
+  return "";
+}
+
+function cleanYouTubeUrl(url) {
+  return String(url || "")
+    .trim()
+    .replace(/&amp;/g, "&")
+    .replace(/[),.;\]]+$/g, "");
+}
+
+function getYouTubeVideoId(url) {
+  const cleanUrl = cleanYouTubeUrl(url);
+
+  if (!cleanUrl) return null;
+
+  try {
+    const parsedUrl = new URL(cleanUrl);
+    const hostname = parsedUrl.hostname.replace("www.", "");
+
+    if (hostname === "youtu.be") {
+      return parsedUrl.pathname.replace("/", "").split("?")[0] || null;
+    }
+
+    if (
+      hostname === "youtube.com" ||
+      hostname === "m.youtube.com" ||
+      hostname === "music.youtube.com"
+    ) {
+      if (parsedUrl.pathname === "/watch") {
+        return parsedUrl.searchParams.get("v");
+      }
+
+      if (parsedUrl.pathname.startsWith("/embed/")) {
+        return parsedUrl.pathname.replace("/embed/", "").split("/")[0] || null;
+      }
+
+      if (parsedUrl.pathname.startsWith("/shorts/")) {
+        return parsedUrl.pathname.replace("/shorts/", "").split("/")[0] || null;
+      }
+
+      if (parsedUrl.pathname.startsWith("/live/")) {
+        return parsedUrl.pathname.replace("/live/", "").split("/")[0] || null;
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function createYouTubeWatchLink(originalUrl) {
+  const safeUrl = escapeHtml(cleanYouTubeUrl(originalUrl));
+
+  return `
+    <p class="youtube-watch-wrapper">
+      <a
+        class="youtube-watch-link"
+        href="${safeUrl}"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Clique para assistir o vídeo no YouTube
+        <span>↗</span>
+      </a>
+    </p>
+  `;
+}
+
+function createYouTubeEmbed(videoId, originalUrl) {
+  if (!videoId) return "";
+
+  const origin = getSafePageOrigin();
+
+  const params = new URLSearchParams({
+    rel: "0",
+    modestbranding: "1",
+    playsinline: "1",
+  });
+
+  if (origin) {
+    params.set("origin", origin);
+  }
+
+  return `
+    <div class="youtube-video-block">
+      <div class="youtube-embed">
+        <iframe
+          src="https://www.youtube.com/embed/${encodeURIComponent(videoId)}?${params.toString()}"
+          title="Vídeo do YouTube"
+          loading="lazy"
+          referrerpolicy="strict-origin-when-cross-origin"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowfullscreen
+        ></iframe>
+      </div>
+
+      ${createYouTubeWatchLink(originalUrl)}
+    </div>
+  `;
+}
+
+function getYouTubeUrlsFromText(text) {
+  const matches = String(text || "").match(YOUTUBE_URL_REGEX);
+
+  if (!matches) {
+    return [];
+  }
+
+  return matches.map(cleanYouTubeUrl);
+}
+
+function replaceYouTubeAnchorLinks() {
+  const links = Array.from(articleContent.querySelectorAll("a"));
+
+  links.forEach((link) => {
+    if (link.closest(".youtube-video-block")) return;
+
+    const href = link.getAttribute("href");
+    const videoId = getYouTubeVideoId(href);
+
+    if (!videoId) return;
+
+    const embedHtml = createYouTubeEmbed(videoId, href);
+    const paragraph = link.closest("p");
+
+    if (paragraph) {
+      paragraph.outerHTML = embedHtml;
+      return;
+    }
+
+    link.outerHTML = embedHtml;
+  });
+}
+
+function replacePlainYouTubeLinks() {
+  const elements = Array.from(articleContent.querySelectorAll("p, div, li"));
+
+  elements.forEach((element) => {
+    if (element.closest(".youtube-video-block")) return;
+    if (element.querySelector(".youtube-video-block")) return;
+    if (element.querySelector("iframe")) return;
+
+    const urls = getYouTubeUrlsFromText(element.textContent);
+
+    if (urls.length === 0) return;
+
+    const embeds = urls
+      .map((url) => {
+        const videoId = getYouTubeVideoId(url);
+
+        if (!videoId) return "";
+
+        return createYouTubeEmbed(videoId, url);
+      })
+      .filter(Boolean)
+      .join("");
+
+    if (!embeds) return;
+
+    const textWithoutUrls = element.textContent
+      .replace(YOUTUBE_URL_REGEX, "")
+      .trim();
+
+    YOUTUBE_URL_REGEX.lastIndex = 0;
+
+    if (!textWithoutUrls) {
+      element.outerHTML = embeds;
+      return;
+    }
+
+    element.innerHTML = element.innerHTML.replace(YOUTUBE_URL_REGEX, "");
+    YOUTUBE_URL_REGEX.lastIndex = 0;
+    element.insertAdjacentHTML("afterend", embeds);
+  });
+}
+
+function renderVideosFromArticleField(article) {
+  if (!article.videos) return;
+
+  const existingVideos = articleContent.querySelectorAll(".youtube-video-block");
+
+  if (existingVideos.length > 0) {
+    return;
+  }
+
+  const possibleUrls = String(article.videos)
+    .split(/[\n,;|]+/)
+    .map((item) => cleanYouTubeUrl(item))
+    .filter(Boolean);
+
+  const embeds = possibleUrls
+    .map((url) => {
+      const videoId = getYouTubeVideoId(url);
+
+      if (!videoId) return "";
+
+      return createYouTubeEmbed(videoId, url);
+    })
+    .filter(Boolean)
+    .join("");
+
+  if (!embeds) return;
+
+  articleContent.insertAdjacentHTML(
+    "afterbegin",
+    `
+      <h2>Vídeo tutorial</h2>
+      ${embeds}
+    `
+  );
+}
+
+function removeRawYouTubeLinksFromTextNodes() {
+  const walker = document.createTreeWalker(
+    articleContent,
+    NodeFilter.SHOW_TEXT,
+    {
+      acceptNode(node) {
+        const parent = node.parentElement;
+
+        if (!parent) {
+          return NodeFilter.FILTER_REJECT;
+        }
+
+        if (parent.closest(".youtube-video-block")) {
+          return NodeFilter.FILTER_REJECT;
+        }
+
+        if (parent.closest(".youtube-watch-wrapper")) {
+          return NodeFilter.FILTER_REJECT;
+        }
+
+        if (YOUTUBE_URL_REGEX.test(node.nodeValue)) {
+          YOUTUBE_URL_REGEX.lastIndex = 0;
+          return NodeFilter.FILTER_ACCEPT;
+        }
+
+        YOUTUBE_URL_REGEX.lastIndex = 0;
+        return NodeFilter.FILTER_REJECT;
+      },
+    }
+  );
+
+  const textNodes = [];
+
+  while (walker.nextNode()) {
+    textNodes.push(walker.currentNode);
+  }
+
+  textNodes.forEach((node) => {
+    node.nodeValue = node.nodeValue.replace(YOUTUBE_URL_REGEX, "").trim();
+    YOUTUBE_URL_REGEX.lastIndex = 0;
+  });
+}
+
+function removeEmptyParagraphsAfterYoutubeCleanup() {
+  const elements = Array.from(articleContent.querySelectorAll("p, div, li"));
+
+  elements.forEach((element) => {
+    if (element.closest(".youtube-video-block")) return;
+    if (element.querySelector("img, iframe, a, button, ul, ol, table")) return;
+
+    const text = element.textContent.trim();
+
+    if (!text) {
+      element.remove();
+    }
+  });
+}
+
+function fixYouTubeVideos(article) {
+  replaceYouTubeAnchorLinks();
+  replacePlainYouTubeLinks();
+  renderVideosFromArticleField(article);
+  removeRawYouTubeLinksFromTextNodes();
+  removeEmptyParagraphsAfterYoutubeCleanup();
+}
+
+function normalizeImagePath(src) {
+  if (!src) return src;
+
+  let cleanSrc = String(src)
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/%5C/g, "/");
+
+  if (cleanSrc.startsWith("data:")) {
+    return cleanSrc;
+  }
+
+  if (cleanSrc.startsWith("http://") || cleanSrc.startsWith("https://")) {
+    return cleanSrc;
+  }
+
+  const uploadsIndex = cleanSrc.toLowerCase().indexOf("/uploads/");
+
+  if (uploadsIndex !== -1) {
+    const relativePath = cleanSrc.substring(uploadsIndex + "/uploads/".length);
+    return `./uploads/${relativePath}`;
+  }
+
+  if (cleanSrc.startsWith("uploads/")) {
+    return `./${cleanSrc}`;
+  }
+
+  if (cleanSrc.startsWith("/uploads/")) {
+    return `.${cleanSrc}`;
+  }
+
+  return cleanSrc;
+}
+
+function fixImages() {
+  const images = articleContent.querySelectorAll("img");
+
+  images.forEach((img) => {
+    img.setAttribute("loading", "lazy");
+
+    const originalSrc = img.getAttribute("src");
+
+    if (!originalSrc) return;
+
+    const fixedSrc = normalizeImagePath(originalSrc);
+
+    img.setAttribute("src", fixedSrc);
+
+    img.onerror = () => {
+      img.insertAdjacentHTML(
+        "afterend",
+        `
+          <p class="error-box">
+            Imagem não encontrada. Verifique se a pasta uploads está dentro de frontend/uploads.
+          </p>
+        `
+      );
+    };
+  });
 }
 
 function fixContentLinks() {
@@ -91,26 +439,6 @@ function fixContentLinks() {
     if (href.startsWith("http")) {
       link.setAttribute("target", "_blank");
       link.setAttribute("rel", "noopener noreferrer");
-    }
-  });
-}
-
-function fixImages() {
-  const images = articleContent.querySelectorAll("img");
-
-  images.forEach((img) => {
-    img.setAttribute("loading", "lazy");
-
-    const src = img.getAttribute("src");
-
-    if (!src) return;
-
-    if (src.startsWith("file:///")) {
-      img.setAttribute("alt", img.getAttribute("alt") || "Imagem não disponível");
-      img.insertAdjacentHTML(
-        "afterend",
-        '<p class="error-box">Esta imagem ainda está apontando para um caminho local do computador e precisa ser ajustada para /uploads.</p>'
-      );
     }
   });
 }
@@ -142,8 +470,9 @@ async function loadArticle() {
 
     articleContent.innerHTML = article.contentHtml || "<p>Conteúdo não disponível.</p>";
 
-    fixContentLinks();
+    fixYouTubeVideos(article);
     fixImages();
+    fixContentLinks();
 
     articleStatus.style.display = "none";
     articleContainer.style.display = "block";

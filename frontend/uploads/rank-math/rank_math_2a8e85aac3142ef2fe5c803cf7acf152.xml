@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type="text/xsl" href="//ajuda.sistemaviperp.com.br/main-sitemap.xsl"?>
+<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd http://www.google.com/schemas/sitemap-image/1.1 http://www.google.com/schemas/sitemap-image/1.1/sitemap-image.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+	<url>
+		<loc>https://ajuda.sistemaviperp.com.br/base-category/outros/</loc>
+		<lastmod>2026-05-28T14:27:54+00:00</lastmod>
+	</url>
+	<url>
+		<loc>https://ajuda.sistemaviperp.com.br/base-category/videos/</loc>
+		<lastmod>2025-08-13T19:20:14+00:00</lastmod>
+	</url>
+	<url>
+		<loc>https://ajuda.sistemaviperp.com.br/base-category/gestao/</loc>
+		<lastmod>2026-05-30T13:59:44+00:00</lastmod>
+	</url>
+	<url>
+		<loc>https://ajuda.sistemaviperp.com.br/base-category/pdv/</loc>
+		<lastmod>2026-05-29T12:44:04+00:00</lastmod>
+	</url>
+	<url>
+		<loc>https://ajuda.sistemaviperp.com.br/base-category/comanda/</loc>
+		<lastmod>2025-09-15T12:38:02+00:00</lastmod>
+	</url>
+	<url>
+		<loc>https://ajuda.sistemaviperp.com.br/base-category/notas-de-versao/</loc>
+		<lastmod>2025-03-10T19:02:24+00:00</lastmod>
+	</url>
+</urlset>
