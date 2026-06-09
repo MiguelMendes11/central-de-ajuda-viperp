@@ -481,6 +481,7 @@ button {
 }
 
 .btn-admin-primary {
+  width: fit-content;
   min-width: 150px;
   height: 48px;
   border: 0;
@@ -489,14 +490,29 @@ button {
   color: #ffffff;
   font-size: 15px;
   font-weight: 800;
-  padding: 0 22px;
+  line-height: 1;
+  padding: 0 24px;
   box-shadow: 0 12px 24px rgba(255, 101, 0, 0.22);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-admin-primary:hover {
+  background: var(--orange-dark);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(255, 101, 0, 0.26);
 }
 
 .btn-admin-primary:disabled {
   opacity: 0.55;
   cursor: not-allowed;
   box-shadow: none;
+  transform: none;
 }
 
 .admin-stats-grid {

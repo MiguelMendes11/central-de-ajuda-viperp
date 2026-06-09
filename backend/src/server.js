@@ -140,6 +140,30 @@ function getAdminArticleInclude() {
   };
 }
 
+function validateArticlePayload(payload) {
+  const { title, slug, contentHtml, status } = payload;
+
+  if (!title || !String(title).trim()) {
+    return "O título do artigo é obrigatório.";
+  }
+
+  if (!slug || !String(slug).trim()) {
+    return "O slug do artigo é obrigatório.";
+  }
+
+  if (!contentHtml || !String(contentHtml).trim()) {
+    return "O conteúdo do artigo é obrigatório.";
+  }
+
+  const allowedStatus = ["PUBLISHED", "DRAFT", "ARCHIVED"];
+
+  if (!allowedStatus.includes(status)) {
+    return "Status inválido.";
+  }
+
+  return null;
+}
+
 /* ============================= */
 /* ROTAS ADMINISTRATIVAS */
 /* ============================= */
@@ -232,6 +256,81 @@ app.get("/admin/articles", authenticateAdmin, async (req, res) => {
   }
 });
 
+app.post("/admin/articles", authenticateAdmin, async (req, res) => {
+  try {
+    const {
+      title,
+      slug,
+      summary,
+      contentHtml,
+      status,
+      protected: isProtected,
+      isFeatured,
+    } = req.body;
+
+    const validationError = validateArticlePayload({
+      title,
+      slug,
+      contentHtml,
+      status,
+    });
+
+    if (validationError) {
+      return res.status(400).json({
+        error: validationError,
+      });
+    }
+
+    const cleanSlug = String(slug).trim();
+
+    const slugAlreadyExists = await prisma.article.findUnique({
+      where: {
+        slug: cleanSlug,
+      },
+    });
+
+    if (slugAlreadyExists) {
+      return res.status(409).json({
+        error: "Já existe um artigo usando este slug.",
+      });
+    }
+
+    const now = new Date();
+
+    const article = await prisma.article.create({
+      data: {
+        title: String(title).trim(),
+        slug: cleanSlug,
+        summary: summary ? String(summary).trim() : null,
+        contentHtml: String(contentHtml).trim(),
+        originalHtml: String(contentHtml).trim(),
+        status,
+        protected: Boolean(isProtected),
+        isFeatured: Boolean(isFeatured),
+        author: req.user.name || req.user.email,
+        publishedAt: status === "PUBLISHED" ? now : null,
+        modifiedAt: now,
+        imageCount: 0,
+        localImageCount: 0,
+        missingImageCount: 0,
+        videoCount: 0,
+      },
+      include: getAdminArticleInclude(),
+    });
+
+    return res.status(201).json({
+      message: "Artigo criado com sucesso.",
+      article,
+    });
+  } catch (error) {
+    console.error("Erro ao criar artigo administrativo:", error);
+
+    return res.status(500).json({
+      error: "Erro ao criar artigo administrativo.",
+    });
+  }
+});
+
 app.get("/admin/articles/:id", authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -275,29 +374,16 @@ app.put("/admin/articles/:id", authenticateAdmin, async (req, res) => {
       isFeatured,
     } = req.body;
 
-    if (!title || !String(title).trim()) {
-      return res.status(400).json({
-        error: "O título do artigo é obrigatório.",
-      });
-    }
+    const validationError = validateArticlePayload({
+      title,
+      slug,
+      contentHtml,
+      status,
+    });
 
-    if (!slug || !String(slug).trim()) {
+    if (validationError) {
       return res.status(400).json({
-        error: "O slug do artigo é obrigatório.",
-      });
-    }
-
-    if (!contentHtml || !String(contentHtml).trim()) {
-      return res.status(400).json({
-        error: "O conteúdo do artigo é obrigatório.",
-      });
-    }
-
-    const allowedStatus = ["PUBLISHED", "DRAFT", "ARCHIVED"];
-
-    if (!allowedStatus.includes(status)) {
-      return res.status(400).json({
-        error: "Status inválido.",
+        error: validationError,
       });
     }
 
@@ -313,9 +399,11 @@ app.put("/admin/articles/:id", authenticateAdmin, async (req, res) => {
       });
     }
 
+    const cleanSlug = String(slug).trim();
+
     const slugAlreadyExists = await prisma.article.findFirst({
       where: {
-        slug: String(slug).trim(),
+        slug: cleanSlug,
         NOT: {
           id,
         },
@@ -328,18 +416,26 @@ app.put("/admin/articles/:id", authenticateAdmin, async (req, res) => {
       });
     }
 
+    const wasNotPublished = existingArticle.status !== "PUBLISHED";
+    const willBePublished = status === "PUBLISHED";
+
     const article = await prisma.article.update({
       where: {
         id,
       },
       data: {
         title: String(title).trim(),
-        slug: String(slug).trim(),
+        slug: cleanSlug,
         summary: summary ? String(summary).trim() : null,
         contentHtml: String(contentHtml).trim(),
         status,
         protected: Boolean(isProtected),
         isFeatured: Boolean(isFeatured),
+        publishedAt:
+          wasNotPublished && willBePublished && !existingArticle.publishedAt
+            ? new Date()
+            : existingArticle.publishedAt,
+        modifiedAt: new Date(),
       },
       include: getAdminArticleInclude(),
     });
