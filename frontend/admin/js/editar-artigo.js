@@ -1,6 +1,8 @@
 const API_URL = "http://localhost:3001";
 
 const logoutButton = document.getElementById("logoutButton");
+const backToArticlesButton = document.getElementById("backToArticlesButton");
+const cancelEditButton = document.getElementById("cancelEditButton");
 
 const articleEditForm = document.getElementById("articleEditForm");
 const saveArticleButton = document.getElementById("saveArticleButton");
@@ -22,6 +24,9 @@ const viewPublicArticleButton = document.getElementById("viewPublicArticleButton
 const articleEditMessage = document.getElementById("articleEditMessage");
 
 let currentArticle = null;
+let originalPayload = null;
+let hasUnsavedChanges = false;
+let isSaving = false;
 
 function getToken() {
   return localStorage.getItem("adminToken");
@@ -36,7 +41,15 @@ function redirectToLogin() {
   window.location.href = "./login.html";
 }
 
+function goToArticlesList() {
+  window.location.href = "./index.html";
+}
+
 function logout() {
+  if (!confirmLeaveWithUnsavedChanges()) {
+    return;
+  }
+
   clearSession();
   redirectToLogin();
 }
@@ -117,16 +130,6 @@ function formatDate(dateValue) {
   }).format(date);
 }
 
-function getStatusLabel(status) {
-  const statusMap = {
-    PUBLISHED: "Publicado",
-    DRAFT: "Rascunho",
-    ARCHIVED: "Arquivado",
-  };
-
-  return statusMap[status] || status || "-";
-}
-
 function getCategoryName(article) {
   return article.category?.name || "Sem categoria";
 }
@@ -145,12 +148,101 @@ function setMessage(message, type = "") {
 }
 
 function setLoading(isLoading) {
+  isSaving = isLoading;
   saveArticleButton.disabled = isLoading;
   saveArticleButton.textContent = isLoading ? "Salvando..." : "Salvar alterações";
 }
 
 function stringToBoolean(value) {
   return String(value) === "true";
+}
+
+function getPayloadFromForm() {
+  return {
+    title: articleTitle.value.trim(),
+    slug: articleSlug.value.trim(),
+    summary: articleSummary.value.trim(),
+    contentHtml: articleContent.value.trim(),
+    status: articleStatus.value,
+    protected: stringToBoolean(articleProtected.value),
+    isFeatured: stringToBoolean(articleFeatured.value),
+  };
+}
+
+function payloadToComparableString(payload) {
+  return JSON.stringify({
+    title: payload.title || "",
+    slug: payload.slug || "",
+    summary: payload.summary || "",
+    contentHtml: payload.contentHtml || "",
+    status: payload.status || "",
+    protected: Boolean(payload.protected),
+    isFeatured: Boolean(payload.isFeatured),
+  });
+}
+
+function setOriginalPayloadFromCurrentForm() {
+  originalPayload = getPayloadFromForm();
+  hasUnsavedChanges = false;
+  updateUnsavedChangesState();
+}
+
+function checkUnsavedChanges() {
+  if (!originalPayload) {
+    hasUnsavedChanges = false;
+    return;
+  }
+
+  const currentPayload = getPayloadFromForm();
+
+  hasUnsavedChanges =
+    payloadToComparableString(currentPayload) !== payloadToComparableString(originalPayload);
+
+  updateUnsavedChangesState();
+}
+
+function updateUnsavedChangesState() {
+  if (!currentArticle) {
+    return;
+  }
+
+  if (hasUnsavedChanges) {
+    setMessage("Existem alterações não salvas neste artigo.", "info");
+    document.title = `* ${articleTitle.value || "Editar Artigo"} | Central de Ajuda VipERP`;
+    return;
+  }
+
+  document.title = `${articleTitle.value || "Editar Artigo"} | Central de Ajuda VipERP`;
+}
+
+function confirmLeaveWithUnsavedChanges() {
+  if (!hasUnsavedChanges) {
+    return true;
+  }
+
+  return window.confirm(
+    "Existem alterações não salvas. Deseja sair mesmo assim?"
+  );
+}
+
+function validatePayload(payload) {
+  if (!payload.title) {
+    throw new Error("Informe o título do artigo.");
+  }
+
+  if (!payload.slug) {
+    throw new Error("Informe o slug do artigo.");
+  }
+
+  if (!payload.contentHtml) {
+    throw new Error("Informe o conteúdo HTML do artigo.");
+  }
+
+  const allowedStatus = ["PUBLISHED", "DRAFT", "ARCHIVED"];
+
+  if (!allowedStatus.includes(payload.status)) {
+    throw new Error("Status inválido.");
+  }
 }
 
 function fillArticleForm(article) {
@@ -179,39 +271,9 @@ function fillArticleForm(article) {
     viewPublicArticleButton.style.display = "none";
   }
 
+  setOriginalPayloadFromCurrentForm();
+
   setMessage("Artigo carregado. Faça as alterações necessárias e clique em salvar.", "info");
-}
-
-function getPayloadFromForm() {
-  return {
-    title: articleTitle.value.trim(),
-    slug: articleSlug.value.trim(),
-    summary: articleSummary.value.trim(),
-    contentHtml: articleContent.value.trim(),
-    status: articleStatus.value,
-    protected: stringToBoolean(articleProtected.value),
-    isFeatured: stringToBoolean(articleFeatured.value),
-  };
-}
-
-function validatePayload(payload) {
-  if (!payload.title) {
-    throw new Error("Informe o título do artigo.");
-  }
-
-  if (!payload.slug) {
-    throw new Error("Informe o slug do artigo.");
-  }
-
-  if (!payload.contentHtml) {
-    throw new Error("Informe o conteúdo HTML do artigo.");
-  }
-
-  const allowedStatus = ["PUBLISHED", "DRAFT", "ARCHIVED"];
-
-  if (!allowedStatus.includes(payload.status)) {
-    throw new Error("Status inválido.");
-  }
 }
 
 async function loadArticle() {
@@ -266,11 +328,51 @@ async function saveArticle() {
 
   fillArticleForm(data.article);
 
+  hasUnsavedChanges = false;
+  setOriginalPayloadFromCurrentForm();
+
   setMessage("Artigo atualizado com sucesso.", "success");
+}
+
+function setupChangeDetection() {
+  const editableFields = [
+    articleTitle,
+    articleSlug,
+    articleStatus,
+    articleProtected,
+    articleFeatured,
+    articleSummary,
+    articleContent,
+  ];
+
+  editableFields.forEach((field) => {
+    field.addEventListener("input", checkUnsavedChanges);
+    field.addEventListener("change", checkUnsavedChanges);
+  });
 }
 
 function setupEvents() {
   logoutButton.addEventListener("click", logout);
+
+  backToArticlesButton.addEventListener("click", (event) => {
+    if (!confirmLeaveWithUnsavedChanges()) {
+      event.preventDefault();
+    }
+  });
+
+  cancelEditButton.addEventListener("click", () => {
+    if (!confirmLeaveWithUnsavedChanges()) {
+      return;
+    }
+
+    goToArticlesList();
+  });
+
+  viewPublicArticleButton.addEventListener("click", (event) => {
+    if (!currentArticle || currentArticle.status !== "PUBLISHED" || !currentArticle.slug) {
+      event.preventDefault();
+    }
+  });
 
   articleEditForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -283,6 +385,17 @@ function setupEvents() {
       setLoading(false);
     }
   });
+
+  window.addEventListener("beforeunload", (event) => {
+    if (!hasUnsavedChanges || isSaving) {
+      return;
+    }
+
+    event.preventDefault();
+    event.returnValue = "";
+  });
+
+  setupChangeDetection();
 }
 
 async function initEditPage() {
