@@ -1043,3 +1043,11 @@ button {
   margin: 0;
   border-radius: 0;
 }
+
+.hero-illustration {
+  display: block;
+  width: 100%;
+  max-width: 620px;
+  height: auto;
+  margin-left: auto;
+}
