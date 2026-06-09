@@ -1167,3 +1167,21 @@ button {
   color: #98a2b3;
   transform: none;
 }
+
+.admin-edit-message.info {
+  background: #eef4ff;
+  border-color: rgba(53, 56, 205, 0.18);
+  color: #3538cd;
+}
+
+.admin-edit-message.success {
+  background: #ecfdf3;
+  border-color: rgba(2, 122, 72, 0.18);
+  color: #027a48;
+}
+
+.admin-edit-message.error {
+  background: #fef3f2;
+  border-color: rgba(180, 35, 24, 0.18);
+  color: #b42318;
+}

@@ -71,7 +71,7 @@
         <h1 id="editPageTitle">Carregando artigo...</h1>
 
         <p id="editPageDescription">
-          Visualize os dados do artigo selecionado antes de liberar a edição.
+          Altere os dados do artigo e salve para atualizar a Central de Ajuda.
         </p>
       </div>
 
@@ -85,62 +85,116 @@
         <div class="admin-form-grid">
           <div class="admin-form-group">
             <label for="articleTitle">Título</label>
-            <input type="text" id="articleTitle" disabled />
+            <input
+              type="text"
+              id="articleTitle"
+              name="title"
+              placeholder="Digite o título do artigo"
+              required
+            />
           </div>
 
           <div class="admin-form-group">
             <label for="articleSlug">Slug</label>
-            <input type="text" id="articleSlug" disabled />
+            <input
+              type="text"
+              id="articleSlug"
+              name="slug"
+              placeholder="slug-do-artigo"
+              required
+            />
           </div>
 
           <div class="admin-form-group">
             <label for="articleCategory">Categoria</label>
-            <input type="text" id="articleCategory" disabled />
+            <input
+              type="text"
+              id="articleCategory"
+              name="category"
+              disabled
+            />
           </div>
 
           <div class="admin-form-group">
             <label for="articleStatus">Status</label>
-            <input type="text" id="articleStatus" disabled />
+            <select id="articleStatus" name="status" required>
+              <option value="PUBLISHED">Publicado</option>
+              <option value="DRAFT">Rascunho</option>
+              <option value="ARCHIVED">Arquivado</option>
+            </select>
           </div>
 
           <div class="admin-form-group">
             <label for="articleProtected">Protegido</label>
-            <input type="text" id="articleProtected" disabled />
+            <select id="articleProtected" name="protected" required>
+              <option value="false">Não</option>
+              <option value="true">Sim</option>
+            </select>
+          </div>
+
+          <div class="admin-form-group">
+            <label for="articleFeatured">Destacado</label>
+            <select id="articleFeatured" name="isFeatured" required>
+              <option value="false">Não</option>
+              <option value="true">Sim</option>
+            </select>
           </div>
 
           <div class="admin-form-group">
             <label for="articleUpdatedAt">Última atualização</label>
-            <input type="text" id="articleUpdatedAt" disabled />
+            <input
+              type="text"
+              id="articleUpdatedAt"
+              name="updatedAt"
+              disabled
+            />
           </div>
         </div>
 
         <div class="admin-form-group">
           <label for="articleSummary">Resumo</label>
-          <textarea id="articleSummary" rows="4" disabled></textarea>
+          <textarea
+            id="articleSummary"
+            name="summary"
+            rows="4"
+            placeholder="Resumo curto do artigo"
+          ></textarea>
         </div>
 
         <div class="admin-form-group">
           <label for="articleContent">Conteúdo HTML</label>
-          <textarea id="articleContent" rows="18" disabled></textarea>
+          <textarea
+            id="articleContent"
+            name="contentHtml"
+            rows="18"
+            placeholder="Conteúdo HTML do artigo"
+            required
+          ></textarea>
         </div>
 
         <div class="admin-edit-actions">
-          <a href="#" id="viewPublicArticleButton" class="btn-admin-secondary" target="_blank" rel="noopener noreferrer">
+          <a
+            href="#"
+            id="viewPublicArticleButton"
+            class="btn-admin-secondary"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             Ver artigo público
           </a>
 
-          <button type="button" class="btn-admin-primary" disabled>
+          <button type="submit" class="btn-admin-primary" id="saveArticleButton">
             Salvar alterações
           </button>
         </div>
 
         <p class="admin-edit-message" id="articleEditMessage">
-          Edição ainda não liberada. Nesta etapa estamos apenas carregando os dados do artigo.
+          Carregando dados do artigo...
         </p>
       </form>
     </section>
   </main>
 
-  <script src="./js/editar-artigo.js"></script>
+  <script src="./js/editar-artigo.js?v=2"></script>
 </body>
 </html>

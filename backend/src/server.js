@@ -261,6 +261,102 @@ app.get("/admin/articles/:id", authenticateAdmin, async (req, res) => {
   }
 });
 
+app.put("/admin/articles/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const {
+      title,
+      slug,
+      summary,
+      contentHtml,
+      status,
+      protected: isProtected,
+      isFeatured,
+    } = req.body;
+
+    if (!title || !String(title).trim()) {
+      return res.status(400).json({
+        error: "O título do artigo é obrigatório.",
+      });
+    }
+
+    if (!slug || !String(slug).trim()) {
+      return res.status(400).json({
+        error: "O slug do artigo é obrigatório.",
+      });
+    }
+
+    if (!contentHtml || !String(contentHtml).trim()) {
+      return res.status(400).json({
+        error: "O conteúdo do artigo é obrigatório.",
+      });
+    }
+
+    const allowedStatus = ["PUBLISHED", "DRAFT", "ARCHIVED"];
+
+    if (!allowedStatus.includes(status)) {
+      return res.status(400).json({
+        error: "Status inválido.",
+      });
+    }
+
+    const existingArticle = await prisma.article.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!existingArticle) {
+      return res.status(404).json({
+        error: "Artigo não encontrado.",
+      });
+    }
+
+    const slugAlreadyExists = await prisma.article.findFirst({
+      where: {
+        slug: String(slug).trim(),
+        NOT: {
+          id,
+        },
+      },
+    });
+
+    if (slugAlreadyExists) {
+      return res.status(409).json({
+        error: "Já existe outro artigo usando este slug.",
+      });
+    }
+
+    const article = await prisma.article.update({
+      where: {
+        id,
+      },
+      data: {
+        title: String(title).trim(),
+        slug: String(slug).trim(),
+        summary: summary ? String(summary).trim() : null,
+        contentHtml: String(contentHtml).trim(),
+        status,
+        protected: Boolean(isProtected),
+        isFeatured: Boolean(isFeatured),
+      },
+      include: getAdminArticleInclude(),
+    });
+
+    return res.json({
+      message: "Artigo atualizado com sucesso.",
+      article,
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar artigo administrativo:", error);
+
+    return res.status(500).json({
+      error: "Erro ao atualizar artigo administrativo.",
+    });
+  }
+});
+
 /* ============================= */
 /* ROTAS PÚBLICAS */
 /* ============================= */
