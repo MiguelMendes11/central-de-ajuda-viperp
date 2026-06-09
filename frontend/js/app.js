@@ -11,6 +11,39 @@ const categoryButtons = document.querySelectorAll(".category-card");
 let searchTimeout = null;
 let currentCategory = "";
 
+const CATEGORY_LABELS = {
+  gestao: "Gestão",
+  pdv: "PDV",
+  comanda: "Comanda",
+  outros: "Outros",
+  "videos-tutoriais": "Vídeos Tutoriais",
+  "notas-de-versao": "Notas de Versão",
+};
+
+const CATEGORY_DESCRIPTIONS = {
+  gestao:
+    "Conteúdos relacionados aos módulos de gestão, financeiro, estoque e processos operacionais.",
+  pdv:
+    "Materiais sobre frente de caixa, vendas, atendimento e rotinas do ponto de venda.",
+  comanda:
+    "Guias sobre o uso de comandas, consumo, controle de mesas e operação relacionada.",
+  outros:
+    "Artigos gerais, configurações diversas e orientações complementares do sistema.",
+  "videos-tutoriais":
+    "Conteúdos em vídeo e materiais passo a passo para facilitar o aprendizado.",
+  "notas-de-versao":
+    "Atualizações, melhorias e novidades publicadas nas versões do VipERP.",
+};
+
+const CATEGORY_ORDER = [
+  "gestao",
+  "pdv",
+  "comanda",
+  "outros",
+  "videos-tutoriais",
+  "notas-de-versao",
+];
+
 function escapeHtml(text) {
   return String(text || "")
     .replaceAll("&", "&amp;")
@@ -20,11 +53,18 @@ function escapeHtml(text) {
     .replaceAll("'", "&#039;");
 }
 
-function removeHtmlTags(html) {
-  return String(html || "")
-    .replace(/<[^>]*>/g, " ")
-    .replace(/\s+/g, " ")
+function normalizeText(text) {
+  return String(text || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
     .trim();
+}
+
+function slugify(text) {
+  return normalizeText(text)
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 function createArticleSummary(article) {
@@ -32,11 +72,7 @@ function createArticleSummary(article) {
     return article.summary;
   }
 
-  if (article.title) {
-    return "Acesse este artigo para consultar o passo a passo completo.";
-  }
-
-  return "Conteúdo disponível na Central de Ajuda VipERP.";
+  return "Acesse este artigo para consultar o passo a passo completo.";
 }
 
 function formatTags(tags) {
@@ -50,6 +86,270 @@ function formatTags(tags) {
     .slice(0, 2);
 }
 
+function getArticleCategoryName(article) {
+  return normalizeText(article.category?.name || "");
+}
+
+function getArticleCategorySlug(article) {
+  return slugify(article.category?.slug || "");
+}
+
+function getArticleTitleAndSlug(article) {
+  return slugify(
+    [
+      article.title || "",
+      article.slug || "",
+      article.originalSlug || "",
+    ].join(" ")
+  );
+}
+
+function getArticleFullText(article) {
+  const tags = Array.isArray(article.tags)
+    ? article.tags.map((item) => item.tag?.name || "").join(" ")
+    : "";
+
+  return normalizeText(
+    [
+      article.category?.name || "",
+      article.category?.slug || "",
+      article.title || "",
+      article.slug || "",
+      article.originalSlug || "",
+      tags,
+    ].join(" ")
+  );
+}
+
+function getArticleFullSlug(article) {
+  const tags = Array.isArray(article.tags)
+    ? article.tags.map((item) => item.tag?.name || "").join(" ")
+    : "";
+
+  return slugify(
+    [
+      article.category?.name || "",
+      article.category?.slug || "",
+      article.title || "",
+      article.slug || "",
+      article.originalSlug || "",
+      tags,
+    ].join(" ")
+  );
+}
+
+function isReleaseNoteArticle(article) {
+  const categoryName = getArticleCategoryName(article);
+  const categorySlug = getArticleCategorySlug(article);
+  const titleSlug = getArticleTitleAndSlug(article);
+
+  return (
+    categoryName.includes("nota de versao") ||
+    categoryName.includes("notas de versao") ||
+    categorySlug.includes("nota-de-versao") ||
+    categorySlug.includes("notas-de-versao") ||
+    titleSlug.includes("nota-de-versao") ||
+    titleSlug.includes("notas-de-versao")
+  );
+}
+
+function isOriginalVideoTutorialCategory(article) {
+  const categoryName = getArticleCategoryName(article);
+  const categorySlug = getArticleCategorySlug(article);
+
+  return (
+    categoryName.includes("videos tutoriais") ||
+    categoryName.includes("video tutorial") ||
+    categoryName.includes("tutoriais em video") ||
+    categoryName.includes("tutorial em video") ||
+    categorySlug.includes("videos-tutoriais") ||
+    categorySlug.includes("video-tutorial") ||
+    categorySlug.includes("tutoriais-em-video") ||
+    categorySlug.includes("tutorial-em-video")
+  );
+}
+
+function isGestaoArticle(article) {
+  const categoryName = getArticleCategoryName(article);
+  const categorySlug = getArticleCategorySlug(article);
+
+  return (
+    categoryName.includes("gestao") ||
+    categoryName.includes("gestão") ||
+    categorySlug.includes("gestao")
+  );
+}
+
+function isPdvArticle(article) {
+  const categoryName = getArticleCategoryName(article);
+  const categorySlug = getArticleCategorySlug(article);
+
+  return (
+    categoryName.includes("pdv") ||
+    categorySlug.includes("pdv")
+  );
+}
+
+function isComandaArticle(article) {
+  const categoryName = getArticleCategoryName(article);
+  const categorySlug = getArticleCategorySlug(article);
+
+  return (
+    categoryName.includes("comanda") ||
+    categoryName.includes("comandas") ||
+    categorySlug.includes("comanda") ||
+    categorySlug.includes("comandas")
+  );
+}
+
+function isOutrosArticle(article) {
+  const categoryName = getArticleCategoryName(article);
+  const categorySlug = getArticleCategorySlug(article);
+
+  return (
+    categoryName.includes("outros") ||
+    categoryName.includes("geral") ||
+    categorySlug.includes("outros") ||
+    categorySlug.includes("geral")
+  );
+}
+
+function isVideoInsideOutros(article) {
+  const fullText = getArticleFullText(article);
+  const fullSlug = getArticleFullSlug(article);
+
+  return (
+    Number(article.videoCount || 0) > 0 ||
+    fullText.includes("video") ||
+    fullText.includes("videos") ||
+    fullText.includes("tutorial em video") ||
+    fullText.includes("tutoriais em video") ||
+    fullText.includes("video tutorial") ||
+    fullText.includes("videos tutoriais") ||
+    fullSlug.includes("video") ||
+    fullSlug.includes("videos") ||
+    fullSlug.includes("tutorial-em-video") ||
+    fullSlug.includes("tutoriais-em-video") ||
+    fullSlug.includes("video-tutorial") ||
+    fullSlug.includes("videos-tutoriais")
+  );
+}
+
+function getArticleCategoryKey(article) {
+  /*
+    Regra principal:
+    Não mexer em Gestão, PDV, Comanda e Notas de Versão.
+
+    A movimentação para Vídeos Tutoriais só acontece em dois casos:
+    1. A categoria original já é Vídeos Tutoriais.
+    2. O artigo cairia em Outros, mas possui vídeo ou indicação de vídeo/tutorial.
+  */
+
+  if (isReleaseNoteArticle(article)) {
+    return "notas-de-versao";
+  }
+
+  if (isOriginalVideoTutorialCategory(article)) {
+    return "videos-tutoriais";
+  }
+
+  if (isComandaArticle(article)) {
+    return "comanda";
+  }
+
+  if (isPdvArticle(article)) {
+    return "pdv";
+  }
+
+  if (isGestaoArticle(article)) {
+    return "gestao";
+  }
+
+  if (isOutrosArticle(article)) {
+    if (isVideoInsideOutros(article)) {
+      return "videos-tutoriais";
+    }
+
+    return "outros";
+  }
+
+  if (isVideoInsideOutros(article)) {
+    return "videos-tutoriais";
+  }
+
+  return "outros";
+}
+
+function articleMatchesSelectedCategory(article, selectedCategory) {
+  if (!selectedCategory) {
+    return true;
+  }
+
+  return getArticleCategoryKey(article) === selectedCategory;
+}
+
+function getCategoryOrder(categoryKey) {
+  const index = CATEGORY_ORDER.indexOf(categoryKey);
+
+  return index === -1 ? 99 : index;
+}
+
+function groupArticlesByCategory(articles) {
+  const grouped = {};
+
+  articles.forEach((article) => {
+    const categoryKey = getArticleCategoryKey(article);
+
+    if (!grouped[categoryKey]) {
+      grouped[categoryKey] = [];
+    }
+
+    grouped[categoryKey].push(article);
+  });
+
+  return Object.entries(grouped).sort(([categoryA], [categoryB]) => {
+    const orderA = getCategoryOrder(categoryA);
+    const orderB = getCategoryOrder(categoryB);
+
+    if (orderA !== orderB) {
+      return orderA - orderB;
+    }
+
+    return CATEGORY_LABELS[categoryA].localeCompare(CATEGORY_LABELS[categoryB]);
+  });
+}
+
+function createArticleCard(article) {
+  const categoryKey = getArticleCategoryKey(article);
+  const categoryName =
+    CATEGORY_LABELS[categoryKey] || article.category?.name || "Artigo";
+
+  const tags = formatTags(article.tags);
+  const summary = createArticleSummary(article);
+
+  const tagsHtml = tags
+    .map((tag) => `<span class="article-tag">${escapeHtml(tag.name)}</span>`)
+    .join("");
+
+  return `
+    <article class="article-card">
+      <div class="article-meta">
+        <span class="article-category">${escapeHtml(categoryName)}</span>
+        ${tagsHtml}
+      </div>
+
+      <h3>${escapeHtml(article.title)}</h3>
+
+      <p>${escapeHtml(summary)}</p>
+
+      <a class="article-link" href="./artigo.html?slug=${encodeURIComponent(article.slug)}">
+        Ver artigo
+        <span>→</span>
+      </a>
+    </article>
+  `;
+}
+
 function renderArticles(articles) {
   articlesGrid.innerHTML = "";
 
@@ -60,35 +360,40 @@ function renderArticles(articles) {
 
   articlesStatus.textContent = `${articles.length} artigo(s) encontrado(s).`;
 
-  const cards = articles.map((article) => {
-    const categoryName = article.category?.name || "Artigo";
-    const tags = formatTags(article.tags);
-    const summary = createArticleSummary(article);
+  const groupedArticles = groupArticlesByCategory(articles);
 
-    const tagsHtml = tags
-      .map((tag) => `<span class="article-tag">${escapeHtml(tag.name)}</span>`)
-      .join("");
+  const sectionsHtml = groupedArticles
+    .map(([categoryKey, categoryArticles]) => {
+      const categoryName = CATEGORY_LABELS[categoryKey] || "Outros";
+      const categoryDescription =
+        CATEGORY_DESCRIPTIONS[categoryKey] ||
+        "Conteúdos disponíveis nesta categoria.";
 
-    return `
-      <article class="article-card">
-        <div class="article-meta">
-          <span class="article-category">${escapeHtml(categoryName)}</span>
-          ${tagsHtml}
-        </div>
+      const cardsHtml = categoryArticles.map(createArticleCard).join("");
 
-        <h3>${escapeHtml(article.title)}</h3>
+      return `
+        <section class="article-topic-group">
+          <div class="topic-header">
+            <div class="topic-title-row">
+              <span class="topic-marker"></span>
+              <div>
+                <h3>${escapeHtml(categoryName)}</h3>
+                <p>${escapeHtml(categoryDescription)}</p>
+              </div>
+            </div>
 
-        <p>${escapeHtml(summary)}</p>
+            <span class="topic-count">${categoryArticles.length} artigo(s)</span>
+          </div>
 
-        <a class="article-link" href="./artigo.html?slug=${encodeURIComponent(article.slug)}">
-          Ver artigo
-          <span>→</span>
-        </a>
-      </article>
-    `;
-  });
+          <div class="topic-articles-grid">
+            ${cardsHtml}
+          </div>
+        </section>
+      `;
+    })
+    .join("");
 
-  articlesGrid.innerHTML = cards.join("");
+  articlesGrid.innerHTML = sectionsHtml;
 }
 
 async function loadArticles(options = {}) {
@@ -105,11 +410,9 @@ async function loadArticles(options = {}) {
       params.set("search", search);
     }
 
-    if (category) {
-      params.set("category", category);
-    }
-
-    const url = `${API_URL}/articles${params.toString() ? `?${params.toString()}` : ""}`;
+    const url = `${API_URL}/articles${
+      params.toString() ? `?${params.toString()}` : ""
+    }`;
 
     const response = await fetch(url);
 
@@ -119,7 +422,13 @@ async function loadArticles(options = {}) {
 
     const data = await response.json();
 
-    renderArticles(data.articles || []);
+    const articles = data.articles || [];
+
+    const filteredArticles = articles.filter((article) =>
+      articleMatchesSelectedCategory(article, category)
+    );
+
+    renderArticles(filteredArticles);
   } catch (error) {
     console.error(error);
 
@@ -163,8 +472,8 @@ searchForm.addEventListener("submit", (event) => {
     : "Artigos disponíveis";
 
   articlesSubtitle.textContent = search
-    ? "Veja os conteúdos encontrados para a sua pesquisa."
-    : "Consulte os conteúdos da Central de Ajuda VipERP.";
+    ? "Veja os conteúdos encontrados para a sua pesquisa, organizados por área."
+    : "Consulte os conteúdos da Central de Ajuda VipERP separados por área.";
 
   loadArticles({
     search,
@@ -185,8 +494,8 @@ searchInput.addEventListener("input", () => {
       : "Artigos disponíveis";
 
     articlesSubtitle.textContent = search
-      ? "Veja os conteúdos encontrados para a sua pesquisa."
-      : "Consulte os conteúdos da Central de Ajuda VipERP.";
+      ? "Veja os conteúdos encontrados para a sua pesquisa, organizados por área."
+      : "Consulte os conteúdos da Central de Ajuda VipERP separados por área.";
 
     loadArticles({
       search,
@@ -203,15 +512,16 @@ categoryButtons.forEach((button) => {
 
     setActiveCategory(button);
 
-    const categoryName = button.querySelector("strong")?.textContent || "Artigos";
+    const categoryName =
+      button.querySelector("strong")?.textContent || "Artigos";
 
     articlesTitle.textContent = category
       ? `Categoria: ${categoryName}`
       : "Artigos disponíveis";
 
     articlesSubtitle.textContent = category
-      ? "Veja os artigos disponíveis nesta categoria."
-      : "Consulte os conteúdos da Central de Ajuda VipERP.";
+      ? "Veja os artigos disponíveis nesta área da Central de Ajuda."
+      : "Consulte os conteúdos da Central de Ajuda VipERP separados por área.";
 
     loadArticles({
       search: searchInput.value.trim(),
