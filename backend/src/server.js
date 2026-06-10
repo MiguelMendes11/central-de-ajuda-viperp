@@ -108,7 +108,7 @@ function normalizeSearchTerm(value) {
 
 function getPaginationParams(req) {
   const page = Math.max(Number(req.query.page) || 1, 1);
-  const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
+  const limit = Math.min(Math.max(Number(req.query.limit) || 500, 1), 1000);
   const skip = (page - 1) * limit;
 
   return {
@@ -449,6 +449,46 @@ app.put("/admin/articles/:id", authenticateAdmin, async (req, res) => {
 
     return res.status(500).json({
       error: "Erro ao atualizar artigo administrativo.",
+    });
+  }
+});
+
+app.delete("/admin/articles/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const article = await prisma.article.findUnique({
+      where: {
+        id,
+      },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+      },
+    });
+
+    if (!article) {
+      return res.status(404).json({
+        error: "Artigo não encontrado.",
+      });
+    }
+
+    await prisma.article.delete({
+      where: {
+        id,
+      },
+    });
+
+    return res.json({
+      message: "Artigo excluído com sucesso.",
+      article,
+    });
+  } catch (error) {
+    console.error("Erro ao excluir artigo administrativo:", error);
+
+    return res.status(500).json({
+      error: "Erro ao excluir artigo administrativo.",
     });
   }
 });

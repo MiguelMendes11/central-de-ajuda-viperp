@@ -7,7 +7,7 @@
   <title>Painel Admin | Central de Ajuda VipERP</title>
 
   <link rel="icon" type="image/png" href="../assets/favicon.png" />
-  <link rel="stylesheet" href="./css/admin.css" />
+  <link rel="stylesheet" href="./css/admin.css?v=3" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -156,6 +156,46 @@
     </section>
   </main>
 
-  <script src="./js/admin.js"></script>
+  <div id="deleteArticleModal" class="admin-modal-overlay hidden">
+    <div class="admin-modal">
+      <div class="admin-modal-header">
+        <div>
+          <span class="admin-modal-pill">Confirmação</span>
+          <h3>Excluir artigo</h3>
+        </div>
+
+        <button type="button" id="closeDeleteModalButton" class="admin-modal-close" aria-label="Fechar modal">
+          ×
+        </button>
+      </div>
+
+      <div class="admin-modal-body">
+        <p>
+          Você está prestes a excluir o artigo:
+        </p>
+
+        <div class="admin-modal-article-box">
+          <strong id="deleteArticleTitle">Nome do artigo</strong>
+          <span id="deleteArticleSlug">slug-do-artigo</span>
+        </div>
+
+        <p class="admin-modal-warning">
+          Essa ação é <strong>definitiva</strong> e o artigo será removido do banco de dados.
+        </p>
+      </div>
+
+      <div class="admin-modal-actions">
+        <button type="button" id="cancelDeleteButton" class="btn-admin-secondary">
+          Cancelar
+        </button>
+
+        <button type="button" id="confirmDeleteButton" class="btn-admin-danger">
+          Excluir artigo
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./js/admin.js?v=3"></script>
 </body>
 </html>
