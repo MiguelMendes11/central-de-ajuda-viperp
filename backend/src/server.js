@@ -106,6 +106,27 @@ function normalizeSearchTerm(value) {
   return String(value || "").trim();
 }
 
+function normalizeOptionalId(value) {
+  const normalized = String(value || "").trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  return normalized;
+}
+
+function slugify(text) {
+  return String(text || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/ç/g, "c")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
+}
+
 function getPaginationParams(req) {
   const page = Math.max(Number(req.query.page) || 1, 1);
   const limit = Math.min(Math.max(Number(req.query.limit) || 500, 1), 1000);
@@ -140,6 +161,16 @@ function getAdminArticleInclude() {
   };
 }
 
+function getAdminCategoryInclude() {
+  return {
+    _count: {
+      select: {
+        articles: true,
+      },
+    },
+  };
+}
+
 function validateArticlePayload(payload) {
   const { title, slug, contentHtml, status } = payload;
 
@@ -162,6 +193,42 @@ function validateArticlePayload(payload) {
   }
 
   return null;
+}
+
+function validateCategoryPayload(payload) {
+  const { name } = payload;
+
+  if (!name || !String(name).trim()) {
+    return "O nome da categoria é obrigatório.";
+  }
+
+  const cleanSlug = slugify(name);
+
+  if (!cleanSlug) {
+    return "O nome informado não gera um slug válido.";
+  }
+
+  return null;
+}
+
+async function validateCategoryId(categoryId) {
+  const cleanCategoryId = normalizeOptionalId(categoryId);
+
+  if (!cleanCategoryId) {
+    return null;
+  }
+
+  const category = await prisma.category.findUnique({
+    where: {
+      id: cleanCategoryId,
+    },
+  });
+
+  if (!category) {
+    throw new Error("Categoria informada não encontrada.");
+  }
+
+  return cleanCategoryId;
 }
 
 /* ============================= */
@@ -233,6 +300,102 @@ app.get("/admin/me", authenticateAdmin, async (req, res) => {
   });
 });
 
+app.get("/admin/categories", authenticateAdmin, async (req, res) => {
+  try {
+    const categories = await prisma.category.findMany({
+      orderBy: {
+        name: "asc",
+      },
+      include: getAdminCategoryInclude(),
+    });
+
+    return res.json({
+      categories,
+    });
+  } catch (error) {
+    console.error("Erro ao buscar categorias administrativas:", error);
+
+    return res.status(500).json({
+      error: "Erro ao buscar categorias administrativas.",
+    });
+  }
+});
+
+app.put("/admin/categories/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description } = req.body;
+
+    const validationError = validateCategoryPayload({
+      name,
+    });
+
+    if (validationError) {
+      return res.status(400).json({
+        error: validationError,
+      });
+    }
+
+    const existingCategory = await prisma.category.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!existingCategory) {
+      return res.status(404).json({
+        error: "Categoria não encontrada.",
+      });
+    }
+
+    const cleanName = String(name).trim();
+    const cleanSlug = slugify(cleanName);
+
+    const slugAlreadyExists = await prisma.category.findFirst({
+      where: {
+        slug: cleanSlug,
+        NOT: {
+          id,
+        },
+      },
+    });
+
+    if (slugAlreadyExists) {
+      return res.status(409).json({
+        error: "Já existe outra categoria usando este nome ou slug.",
+      });
+    }
+
+    const category = await prisma.category.update({
+      where: {
+        id,
+      },
+      data: {
+        name: cleanName,
+        slug: cleanSlug,
+        description:
+          description === undefined
+            ? existingCategory.description
+            : description
+              ? String(description).trim()
+              : null,
+      },
+      include: getAdminCategoryInclude(),
+    });
+
+    return res.json({
+      message: "Categoria atualizada com sucesso.",
+      category,
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar categoria administrativa:", error);
+
+    return res.status(500).json({
+      error: error.message || "Erro ao atualizar categoria administrativa.",
+    });
+  }
+});
+
 app.get("/admin/articles", authenticateAdmin, async (req, res) => {
   try {
     const articles = await prisma.article.findMany({
@@ -266,6 +429,7 @@ app.post("/admin/articles", authenticateAdmin, async (req, res) => {
       status,
       protected: isProtected,
       isFeatured,
+      categoryId,
     } = req.body;
 
     const validationError = validateArticlePayload({
@@ -282,6 +446,7 @@ app.post("/admin/articles", authenticateAdmin, async (req, res) => {
     }
 
     const cleanSlug = String(slug).trim();
+    const cleanCategoryId = await validateCategoryId(categoryId);
 
     const slugAlreadyExists = await prisma.article.findUnique({
       where: {
@@ -307,6 +472,7 @@ app.post("/admin/articles", authenticateAdmin, async (req, res) => {
         status,
         protected: Boolean(isProtected),
         isFeatured: Boolean(isFeatured),
+        categoryId: cleanCategoryId,
         author: req.user.name || req.user.email,
         publishedAt: status === "PUBLISHED" ? now : null,
         modifiedAt: now,
@@ -326,7 +492,7 @@ app.post("/admin/articles", authenticateAdmin, async (req, res) => {
     console.error("Erro ao criar artigo administrativo:", error);
 
     return res.status(500).json({
-      error: "Erro ao criar artigo administrativo.",
+      error: error.message || "Erro ao criar artigo administrativo.",
     });
   }
 });
@@ -372,6 +538,7 @@ app.put("/admin/articles/:id", authenticateAdmin, async (req, res) => {
       status,
       protected: isProtected,
       isFeatured,
+      categoryId,
     } = req.body;
 
     const validationError = validateArticlePayload({
@@ -400,6 +567,7 @@ app.put("/admin/articles/:id", authenticateAdmin, async (req, res) => {
     }
 
     const cleanSlug = String(slug).trim();
+    const cleanCategoryId = await validateCategoryId(categoryId);
 
     const slugAlreadyExists = await prisma.article.findFirst({
       where: {
@@ -431,6 +599,7 @@ app.put("/admin/articles/:id", authenticateAdmin, async (req, res) => {
         status,
         protected: Boolean(isProtected),
         isFeatured: Boolean(isFeatured),
+        categoryId: cleanCategoryId,
         publishedAt:
           wasNotPublished && willBePublished && !existingArticle.publishedAt
             ? new Date()
@@ -448,7 +617,7 @@ app.put("/admin/articles/:id", authenticateAdmin, async (req, res) => {
     console.error("Erro ao atualizar artigo administrativo:", error);
 
     return res.status(500).json({
-      error: "Erro ao atualizar artigo administrativo.",
+      error: error.message || "Erro ao atualizar artigo administrativo.",
     });
   }
 });

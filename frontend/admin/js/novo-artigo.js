@@ -9,6 +9,7 @@ const createArticleButton = document.getElementById("createArticleButton");
 
 const articleTitle = document.getElementById("articleTitle");
 const articleSlug = document.getElementById("articleSlug");
+const articleCategory = document.getElementById("articleCategory");
 const articleStatus = document.getElementById("articleStatus");
 const articleProtected = document.getElementById("articleProtected");
 const articleFeatured = document.getElementById("articleFeatured");
@@ -17,6 +18,7 @@ const articleContent = document.getElementById("articleContent");
 
 const articleCreateMessage = document.getElementById("articleCreateMessage");
 
+let categories = [];
 let hasUnsavedChanges = false;
 let isSaving = false;
 
@@ -131,10 +133,42 @@ function slugify(text) {
     .replace(/-{2,}/g, "-");
 }
 
+function renderCategories() {
+  const options = [
+    `<option value="">Sem categoria</option>`,
+    ...categories.map((category) => {
+      const count = category._count?.articles ?? 0;
+
+      return `
+        <option value="${category.id}">
+          ${category.name} (${count})
+        </option>
+      `;
+    }),
+  ];
+
+  articleCategory.innerHTML = options.join("");
+}
+
+async function loadCategories() {
+  articleCategory.innerHTML = `<option value="">Carregando categorias...</option>`;
+
+  const data = await requestAdmin("/admin/categories");
+
+  if (!data) {
+    return;
+  }
+
+  categories = Array.isArray(data.categories) ? data.categories : [];
+
+  renderCategories();
+}
+
 function getPayloadFromForm() {
   return {
     title: articleTitle.value.trim(),
     slug: articleSlug.value.trim(),
+    categoryId: articleCategory.value.trim() || null,
     summary: articleSummary.value.trim(),
     contentHtml: articleContent.value.trim(),
     status: articleStatus.value,
@@ -169,6 +203,7 @@ function hasFormContent() {
   return Boolean(
     payload.title ||
       payload.slug ||
+      payload.categoryId ||
       payload.summary ||
       payload.contentHtml ||
       payload.status !== "DRAFT" ||
@@ -255,6 +290,7 @@ function setupAutoSlug() {
 
 function setupChangeDetection() {
   const fields = [
+    articleCategory,
     articleStatus,
     articleProtected,
     articleFeatured,
@@ -319,6 +355,8 @@ async function initCreatePage() {
     if (!isSessionValid) {
       return;
     }
+
+    await loadCategories();
 
     setMessage("Preencha os dados do novo artigo. Por segurança, ele inicia como rascunho.", "info");
   } catch (error) {

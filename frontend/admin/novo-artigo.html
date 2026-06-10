@@ -7,7 +7,7 @@
   <title>Novo Artigo | Central de Ajuda VipERP</title>
 
   <link rel="icon" type="image/png" href="../assets/favicon.png" />
-  <link rel="stylesheet" href="./css/admin.css" />
+  <link rel="stylesheet" href="./css/admin.css?v=3" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -106,6 +106,13 @@
           </div>
 
           <div class="admin-form-group">
+            <label for="articleCategory">Categoria</label>
+            <select id="articleCategory" name="categoryId">
+              <option value="">Carregando categorias...</option>
+            </select>
+          </div>
+
+          <div class="admin-form-group">
             <label for="articleStatus">Status</label>
             <select id="articleStatus" name="status" required>
               <option value="DRAFT">Rascunho</option>
@@ -169,6 +176,6 @@
     </section>
   </main>
 
-  <script src="./js/novo-artigo.js?v=1"></script>
+  <script src="./js/novo-artigo.js?v=2"></script>
 </body>
 </html>
